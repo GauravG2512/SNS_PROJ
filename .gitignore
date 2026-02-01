@@ -1,0 +1,12 @@
+# Java junk
+target/
+*.class
+.mvn/
+# Node junk
+node_modules/
+dist/
+.env
+# IDE junk
+.idea/
+.vscode/
+*.swp
