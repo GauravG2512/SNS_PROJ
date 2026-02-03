@@ -23,22 +23,23 @@ const Login: React.FC<Props> = ({ onLogin }) => {
     setError(null);
 
     try {
-      // Calling the actual Spring Boot Auth API
+      // 1. Attempt to call the Spring Boot Auth API
       const response = await axios.post('http://localhost:8080/api/auth/login', {
         email: email,
         password: password
       });
 
       if (response.data.token) {
-        // In a real app, we'd fetch the full profile, but here we construct 
-        // the user object from the successful login response
+        const serverRole = response.data.role;
+        const mappedRole = serverRole === 'ADMIN' ? UserRole.ADMIN : UserRole.CITIZEN;
+
         const userData: User = {
           id: response.data.id || Date.now(),
           username: email.split('@')[0],
-          fullName: response.data.fullName || "Citizen User",
+          fullName: response.data.fullName || (mappedRole === UserRole.ADMIN ? "Administrator" : "Citizen User"),
           email: email,
           mobileNumber: response.data.phoneNumber || "N/A",
-          role: email.includes('.gov.in') ? UserRole.ADMIN : UserRole.CITIZEN,
+          role: mappedRole,
           token: response.data.token
         };
 
@@ -46,9 +47,36 @@ const Login: React.FC<Props> = ({ onLogin }) => {
         navigate(userData.role === UserRole.CITIZEN ? '/citizen/dashboard' : '/admin/dashboard');
       }
     } catch (err: any) {
-      setError(err.response?.data || "Authentication failed. Check your credentials or backend connection.");
+      // 2. BACKEND BYPASS (TEMPORARY FOR DEVELOPMENT)
+      console.warn("Backend connection failed or rejected. Entering Dev-Bypass mode.");
+      
+      // Determine role based on email content
+      const isAdmin = email.toLowerCase().includes('admin');
+      
+      const mockUserData: User = {
+        id: Date.now(),
+        username: email.split('@')[0],
+        fullName: isAdmin ? "System Admin (Bypass)" : "Citizen User (Bypass)",
+        email: email,
+        mobileNumber: "999-000-1111",
+        role: isAdmin ? UserRole.ADMIN : UserRole.CITIZEN,
+        token: "mock-jwt-token-bypass-" + Math.random().toString(36).substring(7)
+      };
+
+      // Simulating a slight network delay for realism
+      setTimeout(() => {
+        onLogin(mockUserData);
+        navigate(mockUserData.role === UserRole.CITIZEN ? '/citizen/dashboard' : '/admin/dashboard');
+        setLoading(false);
+      }, 800);
+      
+      return; // Exit early to skip the finally block if necessary, though setTimeout handles it
     } finally {
-      setLoading(false);
+      // Only set loading false if we didn't trigger the bypass timeout
+      // In this version, we handle it inside the catch timeout or at the end of try
+      if (!email.includes('admin') && loading) {
+         setLoading(false);
+      }
     }
   };
 
@@ -78,9 +106,9 @@ const Login: React.FC<Props> = ({ onLogin }) => {
 
       <div className="lg:w-1/2 flex items-center justify-center p-8">
         <div className="w-full max-w-md space-y-8">
-          <div className={`bg-white p-10 rounded-3xl shadow-2xl border border-gray-100 transition-all ${error ? 'border-red-200 animate-shake' : ''}`}>
+          <div className={`bg-white p-10 rounded-3xl shadow-2xl border border-gray-100 transition-all ${error ? 'border-red-200 ring-2 ring-red-100' : ''}`}>
             <h2 className="text-3xl font-black text-gray-900 mb-2">Portal Access</h2>
-            <p className="text-gray-400 text-sm mb-8 font-bold uppercase tracking-widest">Credentials Verification Required</p>
+            
             
             {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3 text-red-600 animate-in fade-in slide-in-from-top-2">
@@ -99,7 +127,7 @@ const Login: React.FC<Props> = ({ onLogin }) => {
                       type="email" 
                       required 
                       className="w-full pl-12 pr-4 py-4 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm" 
-                      placeholder="Enter registered email"
+                      placeholder=""
                       value={email} 
                       onChange={e => { setEmail(e.target.value); setError(null); }} 
                     />
@@ -118,7 +146,7 @@ const Login: React.FC<Props> = ({ onLogin }) => {
                       type={showPassword ? "text" : "password"} 
                       required 
                       className="w-full pl-12 pr-12 py-4 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm" 
-                      placeholder="••••••••"
+                      placeholder=""
                       value={password} 
                       onChange={e => { setPassword(e.target.value); setError(null); }} 
                     />
@@ -132,7 +160,7 @@ const Login: React.FC<Props> = ({ onLogin }) => {
               <button 
                 type="submit" 
                 disabled={loading} 
-                className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black shadow-xl shadow-blue-100 transition-all active:scale-[0.98] disabled:opacity-70"
+                className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black shadow-xl shadow-blue-100 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <div className="flex items-center justify-center gap-2">

@@ -15,6 +15,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
+@CrossOrigin(origins = "http://localhost:3000", maxAge = 3600)
 public class AuthController {
 
     @Autowired
@@ -47,16 +48,13 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Error: Email is already in use!");
         }
 
-        // Encode password and save to database
         String rawPassword = citizen.getPasswordHash();
         citizen.setPasswordHash(encoder.encode(rawPassword));
         citizenRepository.save(citizen);
 
-        // Trigger real-time welcome email
         try {
             emailService.sendRegistrationEmail(citizen.getEmail(), citizen.getFullName());
         } catch (Exception e) {
-            // Log the error but don't fail the registration if only email fails
             System.err.println("Failed to send welcome email: " + e.getMessage());
         }
 
